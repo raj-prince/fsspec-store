@@ -1,0 +1,3 @@
+version: 1
+id: fsspec-store
+remote: git@github.com:raj-prince/fsspec-store.git
