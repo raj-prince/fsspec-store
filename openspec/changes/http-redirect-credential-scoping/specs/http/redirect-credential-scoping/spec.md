@@ -18,7 +18,7 @@ The HTTP filesystem SHALL forward caller-configured authentication (`auth`), ses
 - **THEN** the redirect is treated as same-origin and the follow-up request preserves credentials and headers
 
 #### Scenario: Cross-origin host change strips credentials and custom headers
-- **WHEN** a request configured with credentials via `client_kwargs["auth"]`, `client_kwargs["headers"]`, `client_kwargs["cookies"]`, or `storage_options` `auth`/`headers` receives a redirect to a different host (including protocol-relative `Location: //other.example/...`)
+- **WHEN** a request configured with credentials via `client_kwargs["auth"]`, `client_kwargs["headers"]`, `client_kwargs["cookies"]`, or `storage_options` `headers` (with per-request `storage_options["auth"]` handled by `aiohttp`) receives a redirect to a different host (including protocol-relative `Location: //other.example/...`)
 - **THEN** the redirected request omits `Authorization`, `Proxy-Authorization`, `Cookie`, and non-allowlisted custom headers such as `X-API-Key`
 
 #### Scenario: Cross-origin port change strips credentials
@@ -52,16 +52,8 @@ When a redirect crosses origins, the HTTP filesystem SHALL preserve standard non
 - **WHEN** a caller configures `User-Agent` and `Accept` alongside `X-API-Key` and follows a cross-origin redirect
 - **THEN** the redirected request preserves `User-Agent` and `Accept` while stripping `X-API-Key`
 
-### Requirement: Bounded HTTP redirect traversal and protocol safety
-The HTTP filesystem SHALL follow `301`, `302`, `303`, `307`, and `308` redirects containing a `Location` header while honoring `allow_redirects`, `max_redirects`, relative `Location` resolution, malformed and non-HTTP redirect rejection via standard client redirect errors, and RFC-compliant method and body handling.
-
-#### Scenario: Caller disables redirects with allow_redirects=False
-- **WHEN** a request specifies `allow_redirects=False` and the server responds with a `302` redirect
-- **THEN** the HTTP filesystem does not follow the redirect and handles the `302` response directly
-
-#### Scenario: Exceeding max_redirects raises TooManyRedirects
-- **WHEN** a server returns more consecutive redirects than `max_redirects` (default 10)
-- **THEN** the HTTP filesystem raises `TooManyRedirects`
+### Requirement: Safe redirect Location handling and RFC-compliant method/body forwarding
+The HTTP filesystem SHALL handle relative `Location` resolution, malformed and non-HTTP redirect rejection via standard client redirect errors, and RFC-compliant method and body handling across `301`, `302`, `303`, `307`, and `308` redirects.
 
 #### Scenario: Relative Location resolves against current URL
 - **WHEN** a request to `https://origin-a.example/dir/a` receives a `302` response with `Location: ../b`
@@ -91,5 +83,5 @@ All HTTP filesystem operations (`ls`, `cat_file`, `get_file`, `put_file`, `pipe_
 - **THEN** `ck` and `ck["headers"]` retain all original keys and values unchanged
 
 #### Scenario: Combining auth with Authorization header raises ValueError
-- **WHEN** a caller supplies both `auth=aiohttp.BasicAuth(...)` and an explicit `Authorization` header in `client_kwargs` (or `storage_options`)
-- **THEN** `HTTPFileSystem` raises `ValueError`
+- **WHEN** a caller supplies both `auth=aiohttp.BasicAuth(...)` and an explicit `Authorization` header in `client_kwargs` (or `storage_options`) and issues a request
+- **THEN** session preparation (for `client_kwargs`) or `aiohttp` (for `storage_options`) raises `ValueError`
